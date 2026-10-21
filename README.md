@@ -1,6 +1,6 @@
 # JGJG Video Studio
 
-JGJG Video Studio is a free, Windows-first desktop video editor. The first version performs local edits with FFmpeg and does not upload video files to a server.
+JGJG Video Studio is a free, Windows-first desktop video editor. Editing runs locally with FFmpeg; video files are not uploaded to a server.
 
 ## First release
 
@@ -9,6 +9,7 @@ JGJG Video Studio is a free, Windows-first desktop video editor. The first versi
 - Optionally replace the source audio with a selected music track.
 - Export an MP4 with H.264 video and AAC audio.
 - Cancel an export in progress.
+- Optionally download the Wan2.2 TI2V-5B local model from inside the app.
 
 ## Use the Windows app
 
@@ -16,11 +17,13 @@ Download **JGJG-Video-Studio-Setup.exe** from the latest successful Windows buil
 
 FFmpeg is included as a separate LGPL shared component. The installer shows its license and installs third-party notices with the app.
 
-## Optional local AI generation
+## Optional local AI model
 
-Local AI generation is planned as an optional install. The small editor download should stay usable without AI; users who want generation can opt in to downloading a compatible model pack. This avoids making every app download tens of gigabytes. The model will run on the user's computer, and generation speed and availability depend on the user's GPU, memory, and free disk space.
+The app includes an **Install AI model** button. It downloads the Wan2.2 TI2V-5B model from its official Hugging Face repository into the user's local app data folder. The download is about 34.2 GB, and the app recommends 38 GB free disk space. Pausing keeps completed files so the user can resume later.
 
-One candidate is Wan2.2 TI2V-5B, which supports text-to-video and image-to-video. Its official model repository is about 34 GB, and the Wan project documents 720p output and a consumer GPU example (RTX 4090). Model weights and code have separate licenses; the chosen version's terms will be shown before download. See the [official Wan2.2 project](https://github.com/Wan-Video/Wan2.2) and [model files and license](https://huggingface.co/Wan-AI/Wan2.2-TI2V-5B).
+The model's repository is labeled Apache 2.0. The app opens the model page before downloading. The model can require substantial GPU memory; the Wan project lists 24 GB of VRAM for the 720p example. Installing model files alone does not yet enable video generation; the local generation engine and generation controls are still being integrated.
+
+See the [official Wan2.2 project](https://github.com/Wan-Video/Wan2.2) and [model files and license](https://huggingface.co/Wan-AI/Wan2.2-TI2V-5B).
 
 ## Run from source
 
@@ -36,11 +39,12 @@ The GitHub Actions workflow tests the app, downloads and checksum-verifies the F
 
 ## Privacy and safety
 
-- The app processes the selected files on the user's computer.
-- It never deletes or overwrites the source video.
+- Editing and model inference are designed to run on the user's computer.
+- The app does not upload source video files.
+- The app never deletes or overwrites the source video.
 - The user selects the output path; exports use a new MP4 file.
-- The first release does not include an AI model or contact a generation service.
+- The model download connects to Hugging Face to retrieve the model files.
 
 ## License
 
-App source: MIT License. FFmpeg and any future AI model are separate components governed by their own licenses. See [third-party notices](THIRD-PARTY-NOTICES.md).
+App source: MIT License. FFmpeg and any AI model are separate components governed by their own licenses. See [third-party notices](THIRD-PARTY-NOTICES.md).
