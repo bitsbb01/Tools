@@ -10,6 +10,15 @@ from pathlib import Path
 import sys
 from tkinter import filedialog, messagebox, ttk
 
+from ai_model import (
+    DownloadCancelled,
+    MODEL_LABEL,
+    MODEL_LICENSE_URL,
+    MINIMUM_FREE_BYTES,
+    install_model,
+    model_install_dir,
+    model_is_installed,
+)
 from media_tools import RESOLUTIONS, build_ffmpeg_command, parse_time
 
 
@@ -29,11 +38,12 @@ class VideoStudio(tk.Tk):
     def __init__(self) -> None:
         super().__init__()
         self.title(APP_NAME)
-        self.geometry("760x650")
-        self.minsize(680, 590)
+        self.geometry("760x700")
+        self.minsize(680, 650)
         self.configure(bg="#10151d")
         self.proc: subprocess.Popen[str] | None = None
         self.cancel_requested = False
+        self.ai_cancel = threading.Event()
         self.events: queue.Queue[tuple[str, object]] = queue.Queue()
         self.source = tk.StringVar()
         self.output = tk.StringVar()
@@ -95,7 +105,70 @@ class VideoStudio(tk.Tk):
         self.progress = ttk.Progressbar(root, mode="determinate", maximum=100)
         self.progress.pack(fill="x", pady=(8, 8))
         ttk.Label(root, textvariable=self.status, style="Sub.TLabel").pack(anchor="w")
+        ai_card = ttk.Frame(root, style="Card.TFrame", padding=14)
+        ai_card.pack(fill="x", pady=(12, 0))
+        ttk.Label(ai_card, text="Optional local AI model", style="Card.TLabel", font=("Segoe UI", 11, "bold")).pack(anchor="w")
+        ttk.Label(ai_card, text="Downloads Wan2.2 TI2V-5B from the model publisher (about 34 GB). Requires substantial storage and a compatible GPU.", style="Card.TLabel", wraplength=690).pack(anchor="w", pady=(4, 8))
+        ai_controls = ttk.Frame(ai_card, style="Card.TFrame")
+        ai_controls.pack(fill="x")
+        self.ai_install_btn = ttk.Button(ai_controls, text="Install AI model", command=self.install_ai_model)
+        self.ai_install_btn.pack(side="left")
+        self.ai_cancel_btn = ttk.Button(ai_controls, text="Pause download", command=self.cancel_ai_model, state="disabled")
+        self.ai_cancel_btn.pack(side="left", padx=8)
+        self.ai_status = tk.StringVar(value=self._model_status())
+        ttk.Label(ai_card, textvariable=self.ai_status, style="Card.TLabel", wraplength=690).pack(anchor="w", pady=(8, 0))
         ttk.Label(root, text="Created by JGJG Books · FFmpeg is included with the Windows app.", style="Sub.TLabel").pack(side="bottom", anchor="w", pady=(18, 0))
+
+    def _model_status(self) -> str:
+        if model_is_installed():
+            return f"{MODEL_LABEL} model files are installed locally. The generation engine is not connected yet."
+        return "The model is optional. It runs locally after installation; generation controls are still being added."
+
+    def install_ai_model(self) -> None:
+        if model_is_installed():
+            messagebox.showinfo("AI model installed", f"{MODEL_LABEL} is installed at:\n{model_install_dir()}\n\nAI video generation controls are still being added to the app.")
+            return
+        accepted = messagebox.askyesno(
+            "Install local AI model?",
+            f"This downloads {MODEL_LABEL} from its official model repository. The download is about 34 GB and needs at least 38 GB of free disk space. The model files are licensed separately under Apache 2.0.\n\nThe official Wan2.2 guide lists a 24 GB GPU for 720p generation. Installing the files does not mean this PC can run them.\n\nContinue to the model license page and start the download?",
+        )
+        if not accepted:
+            return
+        try:
+            parent = model_install_dir().parent
+            parent.mkdir(parents=True, exist_ok=True)
+            free = shutil.disk_usage(parent).free
+        except OSError as exc:
+            messagebox.showerror("Cannot check storage", str(exc))
+            return
+        if free < MINIMUM_FREE_BYTES:
+            free_gb = free / (1024**3)
+            messagebox.showerror("More storage needed", f"At least 38 GB of free space is recommended. This drive has {free_gb:.1f} GB free.")
+            return
+        webbrowser.open(MODEL_LICENSE_URL)
+        self.ai_cancel.clear()
+        self.ai_install_btn.configure(state="disabled")
+        self.ai_cancel_btn.configure(state="normal")
+        self.export_btn.configure(state="disabled")
+        self.progress.configure(value=0)
+        self.ai_status.set("Preparing the official model download… partial files are kept if you pause.")
+        threading.Thread(target=self._run_ai_install, daemon=True).start()
+
+    def _run_ai_install(self) -> None:
+        try:
+            install_model(
+                cancel=self.ai_cancel,
+                on_progress=lambda name, done, total: self.events.put(("ai_progress", (name, done, total))),
+            )
+            self.events.put(("ai_done", str(model_install_dir())))
+        except DownloadCancelled:
+            self.events.put(("ai_cancelled", "Download paused. Click Install AI model to resume; completed files are kept."))
+        except Exception as exc:
+            self.events.put(("ai_error", str(exc)))
+
+    def cancel_ai_model(self) -> None:
+        self.ai_cancel.set()
+        self.ai_status.set("Pausing the download after the current network chunk…")
 
     def _file_row(self, parent: ttk.Frame, label: str, variable: tk.StringVar, callback, row: int) -> None:
         ttk.Label(parent, text=label, style="Card.TLabel").grid(row=row * 2, column=0, sticky="w", pady=(0 if row == 0 else 12, 4))
@@ -176,6 +249,25 @@ class VideoStudio(tk.Tk):
                 kind, value = self.events.get_nowait()
                 if kind == "progress":
                     self.progress.configure(value=value)
+                elif kind == "ai_progress":
+                    name, done, total = value
+                    percent = min(100, done / total * 100) if total else 0
+                    self.progress.configure(value=percent)
+                    self.ai_status.set(f"Downloading {name} · {done / (1024**3):.2f} / {total / (1024**3):.2f} GB")
+                elif kind == "ai_done":
+                    self.progress.configure(value=100)
+                    self.ai_status.set(f"{MODEL_LABEL} model files installed at {value}. The local generation engine is still being integrated.")
+                    self.ai_install_btn.configure(state="normal")
+                    self.ai_cancel_btn.configure(state="disabled")
+                    self.export_btn.configure(state="normal")
+                    messagebox.showinfo("Model installed", f"The model files are installed at:\n{value}\n\nThe app still needs its local generation engine before it can generate video.")
+                elif kind in {"ai_error", "ai_cancelled"}:
+                    self.ai_status.set(str(value))
+                    self.ai_install_btn.configure(state="normal")
+                    self.ai_cancel_btn.configure(state="disabled")
+                    self.export_btn.configure(state="normal")
+                    if kind == "ai_error":
+                        messagebox.showerror("AI model download failed", str(value))
                 elif kind == "done":
                     self.progress.configure(value=100)
                     self.status.set(f"Export complete: {value}")
