@@ -7,12 +7,22 @@ import threading
 import tkinter as tk
 import webbrowser
 from pathlib import Path
+import sys
 from tkinter import filedialog, messagebox, ttk
 
 from media_tools import RESOLUTIONS, build_ffmpeg_command, parse_time
 
 
 APP_NAME = "JGJG Video Studio"
+
+
+def find_ffmpeg() -> str | None:
+    """Use the bundled FFmpeg first, then allow a developer PATH install."""
+    if getattr(sys, "frozen", False) and hasattr(sys, "_MEIPASS"):
+        bundled = Path(sys._MEIPASS) / "ffmpeg" / "ffmpeg.exe"
+        if bundled.is_file():
+            return str(bundled)
+    return shutil.which("ffmpeg")
 
 
 class VideoStudio(tk.Tk):
@@ -81,11 +91,11 @@ class VideoStudio(tk.Tk):
         self.export_btn.pack(side="left")
         self.cancel_btn = ttk.Button(row, text="Cancel", command=self.cancel, state="disabled")
         self.cancel_btn.pack(side="left", padx=8)
-        ttk.Button(row, text="Get FFmpeg", command=lambda: webbrowser.open("https://ffmpeg.org/download.html#build-windows")).pack(side="left")
+        ttk.Button(row, text="FFmpeg license info", command=lambda: webbrowser.open("https://ffmpeg.org/legal.html")).pack(side="left")
         self.progress = ttk.Progressbar(root, mode="determinate", maximum=100)
         self.progress.pack(fill="x", pady=(8, 8))
         ttk.Label(root, textvariable=self.status, style="Sub.TLabel").pack(anchor="w")
-        ttk.Label(root, text="Created by JGJG Books · Local editing runs through FFmpeg.", style="Sub.TLabel").pack(side="bottom", anchor="w", pady=(18, 0))
+        ttk.Label(root, text="Created by JGJG Books · FFmpeg is included with the Windows app.", style="Sub.TLabel").pack(side="bottom", anchor="w", pady=(18, 0))
 
     def _file_row(self, parent: ttk.Frame, label: str, variable: tk.StringVar, callback, row: int) -> None:
         ttk.Label(parent, text=label, style="Card.TLabel").grid(row=row * 2, column=0, sticky="w", pady=(0 if row == 0 else 12, 4))
@@ -110,9 +120,9 @@ class VideoStudio(tk.Tk):
             self.music.set(path)
 
     def export(self) -> None:
-        ffmpeg = shutil.which("ffmpeg")
+        ffmpeg = find_ffmpeg()
         if not ffmpeg:
-            messagebox.showerror("FFmpeg is required", "FFmpeg was not found. Install FFmpeg and add it to PATH, then restart JGJG Video Studio.")
+            messagebox.showerror("FFmpeg is missing", "The bundled FFmpeg files were not found. Reinstall JGJG Video Studio.")
             return
         try:
             start = parse_time(self.start.get())
