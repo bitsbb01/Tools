@@ -15,7 +15,7 @@ AI generation is planned as an optional local engine after the editing workflow 
 ## Run from source
 
 1. Install Python 3.10 or newer.
-2. Install FFmpeg and make sure `ffmpeg` is on PATH.
+2. Install FFmpeg from [ffmpeg.org](https://ffmpeg.org/download.html#build-windows) and make sure `ffmpeg` is on PATH. The app includes a **Get FFmpeg** shortcut to this page.
 3. Run `python main.py`.
 
 No Python packages are needed to run the editor itself. Run `python -m unittest discover -s tests` to run the command-builder tests.
@@ -29,14 +29,14 @@ python -m pip install -r requirements.txt
 pyinstaller --onefile --windowed --name "JGJG Video Studio" main.py
 ```
 
-The executable currently expects FFmpeg to be installed separately. The installer will provide a setup/check step before bundling a redistributable FFmpeg build.
+The executable currently expects FFmpeg to be installed separately. This keeps FFmpeg's separate license and distribution terms clear.
 
 ## Privacy and safety
 
 - The app processes the selected files on the user's computer.
 - It never deletes or overwrites the source video.
 - The user selects the output path; exports use a new MP4 file.
-- The app does not include an AI model or contact a generation service in this first release.
+- The first release does not include an AI model or contact a generation service.
 
 ## License
 
