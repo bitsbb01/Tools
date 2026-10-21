@@ -12,9 +12,9 @@ JGJG Video Studio is a free, Windows-first desktop video editor. The first versi
 
 ## Use the Windows app
 
-Download **JGJG Video Studio.exe** from the latest successful Windows build or GitHub release, then double-click it. It is packaged as a standalone Windows executable, so users do not need to install Python or run Python commands.
+Download **JGJG-Video-Studio-Setup.exe** from the latest successful Windows build or GitHub release and run the installer. It installs a normal Windows app with a Start menu shortcut; a desktop shortcut is optional. The installer includes the app and FFmpeg, so users do not need Python, FFmpeg, or command-line steps.
 
-The current build does require FFmpeg to be installed on the computer and available on PATH. The app's **Get FFmpeg** button opens the download instructions. A future installer can bundle FFmpeg so users can install both together; FFmpeg's separate license and corresponding source notices need to be included with that distribution.
+FFmpeg is included as a separate LGPL shared component. The installer shows its license and installs third-party notices with the app.
 
 ## Optional local AI generation
 
@@ -25,21 +25,14 @@ One candidate is Wan2.2 TI2V-5B, which supports text-to-video and image-to-video
 ## Run from source
 
 1. Install Python 3.10 or newer.
-2. Install FFmpeg from [ffmpeg.org](https://ffmpeg.org/download.html#build-windows) and make sure `ffmpeg` is on PATH. The app includes a **Get FFmpeg** shortcut to this page.
+2. For source runs, install FFmpeg from [ffmpeg.org](https://ffmpeg.org/download.html#build-windows) and make sure `ffmpeg` is on PATH.
 3. Run `python main.py`.
 
 No Python packages are needed to run the editor itself. Run `python -m unittest discover -s tests` to run the command-builder tests.
 
-## Build the Windows executable
+## Build the Windows installer
 
-On Windows, run:
-
-```powershell
-python -m pip install -r requirements.txt
-pyinstaller --onefile --windowed --name "JGJG Video Studio" main.py
-```
-
-The executable currently expects FFmpeg to be installed separately. AI weights will be installed as an optional model pack rather than bundled into the small editor executable.
+The GitHub Actions workflow tests the app, downloads and checksum-verifies the FFmpeg LGPL shared build, creates a standalone executable, and packages it with Inno Setup. Users installing the release do not need Python or a separate FFmpeg install.
 
 ## Privacy and safety
 
@@ -50,4 +43,4 @@ The executable currently expects FFmpeg to be installed separately. AI weights w
 
 ## License
 
-App source: MIT License. FFmpeg and any future AI model are separate components governed by their own licenses.
+App source: MIT License. FFmpeg and any future AI model are separate components governed by their own licenses. See [third-party notices](THIRD-PARTY-NOTICES.md).
