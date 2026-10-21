@@ -1,11 +1,11 @@
 from __future__ import annotations
 
-import os
 import queue
 import shutil
 import subprocess
 import threading
 import tkinter as tk
+import webbrowser
 from pathlib import Path
 from tkinter import filedialog, messagebox, ttk
 
@@ -23,6 +23,7 @@ class VideoStudio(tk.Tk):
         self.minsize(680, 590)
         self.configure(bg="#10151d")
         self.proc: subprocess.Popen[str] | None = None
+        self.cancel_requested = False
         self.events: queue.Queue[tuple[str, object]] = queue.Queue()
         self.source = tk.StringVar()
         self.output = tk.StringVar()
@@ -80,6 +81,7 @@ class VideoStudio(tk.Tk):
         self.export_btn.pack(side="left")
         self.cancel_btn = ttk.Button(row, text="Cancel", command=self.cancel, state="disabled")
         self.cancel_btn.pack(side="left", padx=8)
+        ttk.Button(row, text="Get FFmpeg", command=lambda: webbrowser.open("https://ffmpeg.org/download.html#build-windows")).pack(side="left")
         self.progress = ttk.Progressbar(root, mode="determinate", maximum=100)
         self.progress.pack(fill="x", pady=(8, 8))
         ttk.Label(root, textvariable=self.status, style="Sub.TLabel").pack(anchor="w")
@@ -124,6 +126,7 @@ class VideoStudio(tk.Tk):
         Path(self.output.get()).parent.mkdir(parents=True, exist_ok=True)
         self.export_btn.configure(state="disabled")
         self.cancel_btn.configure(state="normal")
+        self.cancel_requested = False
         self.progress.configure(value=0)
         self.status.set("Exporting… the source file will not be changed.")
         threading.Thread(target=self._run_export, args=(command, duration), daemon=True).start()
@@ -142,6 +145,8 @@ class VideoStudio(tk.Tk):
             code = self.proc.wait()
             if code == 0:
                 self.events.put(("done", command[-1]))
+            elif self.cancel_requested:
+                self.events.put(("cancelled", "Export cancelled. The source video was not changed."))
             else:
                 self.events.put(("error", f"FFmpeg exited with code {code}. Check that the clip and audio files are supported and that the output path is writable."))
         except Exception as exc:
@@ -151,6 +156,7 @@ class VideoStudio(tk.Tk):
 
     def cancel(self) -> None:
         if self.proc and self.proc.poll() is None:
+            self.cancel_requested = True
             self.proc.terminate()
             self.status.set("Cancelling export…")
 
@@ -171,6 +177,11 @@ class VideoStudio(tk.Tk):
                     self.export_btn.configure(state="normal")
                     self.cancel_btn.configure(state="disabled")
                     messagebox.showerror("Export failed", str(value))
+                elif kind == "cancelled":
+                    self.progress.configure(value=0)
+                    self.status.set(str(value))
+                    self.export_btn.configure(state="normal")
+                    self.cancel_btn.configure(state="disabled")
         except queue.Empty:
             pass
         self.after(100, self._check_events)
